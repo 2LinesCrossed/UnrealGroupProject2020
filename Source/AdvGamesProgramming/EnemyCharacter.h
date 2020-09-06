@@ -11,7 +11,7 @@
 #include "EnemyCharacter.generated.h"
 
 UENUM()
-enum class AgentState : uint8 {PATROL, ENGAGE, EVADE};
+enum class AgentState : uint8 {PATROL, ENGAGE, EVADE, HEARD};
 
 UCLASS()
 class ADVGAMESPROGRAMMING_API AEnemyCharacter : public ACharacter
@@ -39,6 +39,7 @@ public:
 	AActor* DetectedActor;
 	UPROPERTY(VisibleAnywhere)
 	bool bCanSeeActor;
+	bool bHeardPlayer;
 	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 	UPROPERTY(VisibleAnywhere)
@@ -51,6 +52,7 @@ public:
 	void AgentPatrol();
 	void AgentEvade();
 	void AgentEngage();
+	void AgentHeard();
 	
 
 private:

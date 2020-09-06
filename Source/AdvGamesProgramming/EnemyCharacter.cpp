@@ -36,7 +36,7 @@ void AEnemyCharacter::Tick(float DeltaTime)
 	if (CurrentAgentState == AgentState::PATROL)
 	{
 		AgentPatrol();
-
+		//UE_LOG(LogTemp, Error, TEXT("Current State: Patrol"));
 		if (bCanSeeActor && HealthComponent->HealthPercentageRemaining() >= 0.4) {
 			CurrentAgentState = AgentState::ENGAGE;
 			Path.Empty();
@@ -45,11 +45,17 @@ void AEnemyCharacter::Tick(float DeltaTime)
 			CurrentAgentState = AgentState::EVADE;
 			Path.Empty();
 		}
+		else if (bHeardPlayer && !bCanSeeActor && HealthComponent->HealthPercentageRemaining() >= 0.4) {
+			CurrentAgentState = AgentState::HEARD;
+			Path.Empty();
+		
+		}
 
 	}
 	else if (CurrentAgentState == AgentState::ENGAGE)
 	{
 		AgentEngage();
+		//UE_LOG(LogTemp, Error, TEXT("Current State: Engage"));
 		if (!bCanSeeActor) {
 			CurrentAgentState = AgentState::PATROL;
 		}
@@ -57,19 +63,52 @@ void AEnemyCharacter::Tick(float DeltaTime)
 			CurrentAgentState = AgentState::EVADE;
 			Path.Empty();
 		}
+		/*else if (bHeardPlayer && !bCanSeeActor && HealthComponent->HealthPercentageRemaining() < 0.4) {
+			CurrentAgentState = AgentState::HEARD;
+			bHeardPlayer = false;
+			Path.Empty();
+		} */
 	}
 	else if (CurrentAgentState == AgentState::EVADE)
 	{
 		AgentEvade();
+		//UE_LOG(LogTemp, Error, TEXT("Current State: Evade"));
 		if (!bCanSeeActor) {
 			CurrentAgentState = AgentState::PATROL;
+			
 		}
 		else if (bCanSeeActor && HealthComponent->HealthPercentageRemaining() >= 0.4) {
 			CurrentAgentState = AgentState::ENGAGE;
 			Path.Empty();
 		}
+		else if (bHeardPlayer && !bCanSeeActor && HealthComponent->HealthPercentageRemaining() >= 0.4) {
+			CurrentAgentState = AgentState::HEARD;
+			Path.Empty();
+		
+		}
+	}
+	else if (CurrentAgentState == AgentState::HEARD) {
+		AgentHeard();
+		//UE_LOG(LogTemp, Error, TEXT("Current State: Heard"));
+		if (!bCanSeeActor && !bHeardPlayer) {
+			CurrentAgentState = AgentState::PATROL;
+		}
+		else if (bCanSeeActor && !bHeardPlayer && HealthComponent->HealthPercentageRemaining() >= 0.4) {
+			CurrentAgentState = AgentState::ENGAGE;
+			
+			Path.Empty();
+			
+		}
+		else if (bCanSeeActor && HealthComponent->HealthPercentageRemaining() < 0.4) {
+			CurrentAgentState = AgentState::EVADE;
+			
+			Path.Empty();
+		
+		}
+
 	}
 	MoveAlongPath();
+
 }
 
 // Called to bind functionality to input
@@ -109,15 +148,41 @@ void AEnemyCharacter::AgentEvade() {
 		FVector DirectionToTarget = DetectedActor->GetActorLocation() - CurrentNode->GetActorLocation();
 		Fire(DirectionToTarget);
 	}
+	if (bHeardPlayer && Path.Num() == 0) {
+		bHeardPlayer = false;
+		ANavigationNode* GoTo = Manager->FindFurthestNode(DetectedActor->GetActorLocation());
+		Path = Manager->GeneratePath(CurrentNode, GoTo);
+	}
 }
 
+void AEnemyCharacter::AgentHeard() {
+		if (Path.Num() == 0) {
+			ANavigationNode* GoTo = Manager->FindNearestNode(DetectedActor->GetActorLocation());
+			Path = Manager->GeneratePath(CurrentNode, GoTo);
+		}
+		if (bCanSeeActor = true) {
+			FVector DirectionToTarget = DetectedActor->GetActorLocation() - CurrentNode->GetActorLocation();
+			Fire(DirectionToTarget);
+		}
+	}
+
+
 void AEnemyCharacter::SensePlayer(AActor* ActorSensed, FAIStimulus Stimulus) {
+	//FAIStimulus s = Stimulus;
+	//FString sText = TEXT("%s");
 	if (Stimulus.WasSuccessfullySensed()) {
 		DetectedActor = ActorSensed;
-		bCanSeeActor = true;
-		UE_LOG(LogTemp, Warning, TEXT("Player Detected"));
+		UE_LOG(LogTemp, Error, TEXT("StimulusName: %s"), *Stimulus.Type.Name.ToString());
+		if (Stimulus.Type.Name.ToString() == "Default__AISense_Hearing") {
+			bHeardPlayer = true;
+		}
+		else if (Stimulus.Type.Name.ToString() == "Default__AISense_Sight") {
+			bCanSeeActor = true;
+			UE_LOG(LogTemp, Warning, TEXT("Player Detected"));
+		}
 	}
 	else {
+		bHeardPlayer = false;
 		bCanSeeActor = false;
 		UE_LOG(LogTemp, Warning, TEXT("Player Lost"));
 
